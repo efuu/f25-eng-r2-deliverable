@@ -1,4 +1,4 @@
-/* eslint-disable */
+///* eslint-disable */
 "use client";
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
 import { useRef, useState } from "react";
@@ -8,6 +8,8 @@ export default function SpeciesChatbot() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [message, setMessage] = useState("");
   const [chatLog, setChatLog] = useState<{ role: "user" | "bot"; content: string }[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const handleInput = () => {
     const textarea = textareaRef.current;
     if (textarea) {
@@ -17,7 +19,38 @@ export default function SpeciesChatbot() {
   };
 
 const handleSubmit = async () => {
-  // TODO: Implement this function
+
+  const text = message.trim();
+  if (!text || isProcessing) return;
+
+  setIsProcessing(true);
+
+  setChatLog((prev) => [...prev, { role: "user", content: text }]);
+
+  setMessage("");
+
+
+
+  try {
+    const response = await fetch ("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text }),
+    
+    });
+    const data = await response.json();
+    //needs some fixing for showing the chatbot response
+    setChatLog((prev) => [...prev, { role: "bot", content: data.response}]);
+
+
+  } catch {
+    setChatLog((prev) => [...prev, { role: "bot", content: "Error contacting server." }]);
+  } finally {
+    setIsProcessing (false);
+  }
+
+  
+
 }
 
 return (

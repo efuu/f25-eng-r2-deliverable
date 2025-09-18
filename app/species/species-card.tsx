@@ -10,12 +10,22 @@ on the client-side to correctly match component state and props should the order
 React server components don't track state between rerenders, so leaving the uniquely identified components (e.g. SpeciesCard)
 can cause errors with matching props and state in child components if the list order changes.
 */
+import EditSpeciesDialog from "./edit-species-dialogue"
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import type { Database } from "@/lib/schema";
 import Image from "next/image";
 type Species = Database["public"]["Tables"]["species"]["Row"];
 
-export default function SpeciesCard({ species }: { species: Species }) {
+export default function SpeciesCard({ species, sessionId }: { species: Species, sessionId: string }) {
   return (
     <div className="m-4 w-72 min-w-72 flex-none rounded border-2 p-3 shadow">
       {species.image && (
@@ -27,7 +37,44 @@ export default function SpeciesCard({ species }: { species: Species }) {
       <h4 className="text-lg font-light italic">{species.common_name}</h4>
       <p>{species.description ? species.description.slice(0, 150).trim() + "..." : ""}</p>
       {/* Replace the button with the detailed view dialog. */}
-      <Button className="mt-3 w-full">Learn More</Button>
+      <div className="flex flex-col gap-3">
+
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button className="mt-3 w-full">Learn More</Button>
+          </DialogTrigger>
+          <DialogContent className="max-h-screen overflow-y-auto sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle><h3 className="mt-3 text-2xl font-semibold">{species.scientific_name}</h3>
+              </DialogTitle>
+              <DialogDescription>
+                <h4 className="text-lg font-light italic">{species.common_name}</h4>
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-4 space-y-3 text-sm">
+              <p>
+                <span className="font-semibold">Author:</span>{" "}
+                {/* //{profile.display_name} */}
+              </p>
+              <p>
+                <span className="font-semibold">Total Population:</span>{" "}
+                {species.total_population}
+              </p>
+              <p>
+                <span className="font-semibold">Kingdom:</span>{" "}{species.kingdom}
+              </p>
+              <p>
+                <span className="font-semibold">Description:</span>{" "}{species.description}
+              </p>
+            </div>
+
+          </DialogContent>
+        </Dialog>
+        {species.author === sessionId && (
+          <EditSpeciesDialog species={species} />
+        )}
+      </div>
     </div>
   );
 }
