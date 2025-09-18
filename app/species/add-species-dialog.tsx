@@ -23,6 +23,26 @@ import { useState, type BaseSyntheticEvent } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+// type for wikimedia api response
+type WikiSummary = {
+  title: string;
+  type?: string; // ("standard" | "disambiguation" ) 
+  extract?: string; // the long description
+  description?: string; // the short description
+  originalimage?: { source: string }; // large original image
+  thumbnail?: { source: string }; // small thumbnail image
+};
+
+// fetch summary using exact title
+async function fetchWikiSummaryByTitle(title: string): Promise<WikiSummary | null> {
+  const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+  const response = await fetch(url, { headers: { accept: "application/json" } });
+  if (!response.ok) return null;
+  return (await response.json()) as WikiSummary;
+}
+
+
+
 // We use zod (z) to define a schema for the "Add species" form.
 // zod handles validation of the input values with methods like .string(), .nullable(). It also processes the form inputs with .transform() before the inputs are sent to the database.
 
@@ -79,6 +99,9 @@ export default function AddSpeciesDialog({ userId }: { userId: string }) {
 
   // Control open/closed state of the dialog
   const [open, setOpen] = useState<boolean>(false);
+  const [wikiQuery, setWikiQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+
 
   // Instantiate form functionality with React Hook Form, passing in the Zod schema (for validation) and default values
   const form = useForm<FormData>({
@@ -86,6 +109,72 @@ export default function AddSpeciesDialog({ userId }: { userId: string }) {
     defaultValues,
     mode: "onChange",
   });
+
+  const handleAutofillFromWikipedia = async () => {
+    const q = wikiQuery.trim();
+
+    //check if search is empty before running
+    if (!q) {
+      return toast({
+        title: "Enter a species name",
+        description: "Try a scientific or common name (search can not be empty).",
+        variant: "destructive",
+      });
+    }
+
+
+    setIsSearching(true);
+    try {
+      const summary = await fetchWikiSummaryByTitle(q);
+      if (!summary || summary.type === "disambiguation") {
+        toast({
+          title: "No exact Wikipedia match",
+          description: "Try a more specific species name.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // check if received either extract or description for text (prefer extract)
+      const text = summary.extract?.trim() || summary.description?.trim() || "";
+
+      // check if received either originalimage or thumbnail for img (prefer originalimage)
+      const img = summary.originalimage?.source || summary.thumbnail?.source || "";
+
+      if (!text && !img) {
+        toast({
+          title: `Found an article for “${summary.title}”, but no summary/image`,
+          description: "You can still fill fields manually.",
+        });
+        return;
+      }
+
+      // autofill in text
+      if (text) {
+        form.setValue("description", text);
+      }
+
+      // autofill in image 
+      if (img) {
+        form.setValue("image", img);
+      }
+      toast({ title: `Autofilled from Wikipedia: “${summary.title}”` });
+
+    } catch (err) {
+
+      //eror when connecting to the api
+      console.error(err);
+      toast({
+        title: "Wikipedia search failed",
+        description: "Error when connecting to Wikipedia API",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+
 
   const onSubmit = async (input: FormData) => {
     // The `input` prop contains data that has already been processed by zod. We can now use it in a supabase query
@@ -144,6 +233,22 @@ export default function AddSpeciesDialog({ userId }: { userId: string }) {
             Add a new species here. Click &quot;Add Species&quot; below when you&apos;re done.
           </DialogDescription>
         </DialogHeader>
+
+        <div className="mb-2 flex items-center gap-2">
+          <Input placeholder="Search Wikipedia (e.g. Sloth or Folivora)"
+            value={wikiQuery}
+            onChange={(e) => setWikiQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void handleAutofillFromWikipedia();
+              }
+            }}
+          />
+          <Button onClick={handleAutofillFromWikipedia} disabled={isSearching}>
+            {isSearching ? "Searching..." : "Autofill"}
+          </Button>
+        </div>
         <Form {...form}>
           <form onSubmit={(e: BaseSyntheticEvent) => void form.handleSubmit(onSubmit)(e)}>
             <div className="grid w-full items-center gap-4">
