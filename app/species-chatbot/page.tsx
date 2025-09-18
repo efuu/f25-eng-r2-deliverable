@@ -152,8 +152,9 @@ export default function SpeciesChatbot() {
             type="button"
             onClick={() => void handleSubmit()}
             className="mt-2 rounded bg-primary px-4 py-2 text-background transition hover:opacity-90"
+            disabled={isProcessing}
           >
-            Enter
+            {isProcessing ? "Waiting..." : "Enter"}
           </button>
         </div>
       </div>
