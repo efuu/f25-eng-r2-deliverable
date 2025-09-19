@@ -1,4 +1,3 @@
-///* eslint-disable */
 "use client";
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
 import { useRef, useState, useEffect } from "react";

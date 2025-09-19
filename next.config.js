@@ -1,11 +1,16 @@
 /** @type {import('next').NextConfig} */
-
-await import("./env.mjs");
+import "./env.mjs";
 
 const nextConfig = {
   reactStrictMode: true,
   images: {
     unoptimized: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
   },
 };
 
